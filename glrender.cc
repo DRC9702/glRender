@@ -18,6 +18,8 @@
 typedef vec4  point4;
 typedef vec4  color4;
 
+using namespace std;
+
 // source provided for function to load and compile shaders
 GLuint InitShader( const char* vertexShaderFile,
                   const char* fragmentShaderFile );
@@ -26,75 +28,72 @@ GLuint InitShader( const char* vertexShaderFile,
 //const int NumVertices = 3;
 
 int NumVertices = -1;
-std::vector<vec4> verts;// = std::vector<vec4>();
+std::vector<float> verts;// = std::vector<vec4>();
 std::vector<int> tris;// = std::vector<int> ();
 
-void readObjFile(const char *file, std::vector< int > &tris, std::vector< vec4 > &verts, point4* &points, color4* &colors){
-// clear out the tris and verts vectors:
-	tris.clear ();
-	verts.clear ();
+void readObjFile (const char *file, std::vector< int > &trisIn, std::vector< float > &vertsIn){
 
-	std::ifstream in(file);
-	char buffer[1025];
-	std::string cmd;
+    // clear out the tris and verts vectors:
+    tris.clear ();
+    verts.clear ();
 
-	for (int line=1; in.good(); line++) {
+    ifstream in(file);
+    char buffer[1025];
+    string cmd;
+
+    for (int line=1; in.good(); line++) {
 //    	cout << "Reading in line[" << line << "] of wavefront file." << endl;
-		in.getline(buffer,1024);
-		buffer[in.gcount()]=0;
+        in.getline(buffer,1024);
+        buffer[in.gcount()]=0;
 
-		cmd="";
+        cmd="";
 
-		std::istringstream iss (buffer);
+        istringstream iss (buffer);
 
-		iss >> cmd;
+        iss >> cmd;
 
-		//cout << "trisSize: " << tris.size() << endl;
+        //cout << "trisSize: " << tris.size() << endl;
 
-		if (cmd[0]=='#' or cmd.empty()) {
-			// ignore comments or blank lines
-			continue;
-		}
-		else if (cmd=="v") {
-			// got a vertex:
+        if (cmd[0]=='#' or cmd.empty()) {
+            // ignore comments or blank lines
+            continue;
+        }
+        else if (cmd=="v") {
+            // got a vertex:
 
-			// read in the parameters:
-			float pa, pb, pc;
-			iss >> pa >> pb >> pc;
-//			verts.push_back (pa);
-//			verts.push_back (pb);
-//			verts.push_back (pc);
-			//vec4 vertex = vec4(pa,pb,pc, 1.0);
-			//const float vertex[4] = {pa,pb,pc, 1.0};
-			vec4 vertex = new float[]{pa,pb,pc,1.0};
-			verts.push_back(vertex);
-			//verts.emplace_back(vertex);
-		 }
-		else if (cmd=="f") {
-			// got a face (triangle)
+            // read in the parameters:
+            double pa, pb, pc;
+            iss >> pa >> pb >> pc;
 
-			// read in the parameters:
-			int i, j, k;
-			iss >> i >> j >> k;
+            vertsIn.push_back (pa);
+            vertsIn.push_back (pb);
+            vertsIn.push_back (pc);
+         }
+        else if (cmd=="f") {
+            // got a face (triangle)
 
-			// vertex numbers in OBJ files start with 1, but in C++ array
-			// indices start with 0, so we're shifting everything down by
-			// 1
-			tris.push_back (i-1);
-			tris.push_back (j-1);
-			tris.push_back (k-1);
-		}
-		else {
-			std::cerr << "Parser error: invalid command at line " << line << std::endl;
-		}
+            // read in the parameters:
+            int i, j, k;
+            iss >> i >> j >> k;
 
-	 }
+            // vertex numbers in OBJ files start with 1, but in C++ array
+            // indices start with 0, so we're shifting everything down by
+            // 1
+            trisIn.push_back (i-1);
+            trisIn.push_back (j-1);
+            trisIn.push_back (k-1);
+        }
+        else {
+            std::cerr << "Parser error: invalid command at line " << line << std::endl;
+        }
 
-	in.close();
-	NumVertices = verts.size();
+     }
+
+    in.close();
 
  //   std::cout << "found this many tris, verts: " << tris.size () / 3.0 << "  " << verts.size () / 3.0 << std::endl;
 }
+
 
 // x, y, r, g, b for each of 3 vertices.
 
@@ -103,6 +102,7 @@ void readObjFile(const char *file, std::vector< int > &tris, std::vector< vec4 >
 //    {-0.25,0.0,0.0, 1.0},
 //    {0.25,0.0,0.0, 1.0},
 //    {0.0, 0.5,0.0, 1.0}};
+//vector<vec4> vertices = vector<vec4>();
 
 // viewer's position, for lighting calculations
 point4 viewer = {0.0, 0.0, -1.0, 1.0};
@@ -143,7 +143,7 @@ float posy = 0.0;   // translation along Y
 const float deg_to_rad = (3.1415926 / 180.0);
 
 
-// three helper functions for the vec4 class:
+// three helper functions for the vec4 class:points
 void vecproduct (vec4 &res, const vec4 &v1, const vec4 &v2) {
     for (int i = 0; i < 4; ++i)
         res[i] = v1[i] * v2[i];
@@ -164,17 +164,17 @@ void vecclear(vec4 &res)
 // transform the triangle's vertex data and put it into the points array.
 // also, compute the lighting at each vertex, and put that into the colors
 // array.
-void tri()
+void tri(vec4 *vertices, point4 *points, color4 *colors)
 {
     // compute the lighting at each vertex, then set it as the color there:
 	for(int j=0; j<NumVertices; j+=3){
-		mat4x4_mul_vec4 (points[tris[j+0]], ctm, verts[tris[j+0]]);
-		mat4x4_mul_vec4 (points[tris[j+1]], ctm, verts[tris[j+1]]);
-		mat4x4_mul_vec4 (points[tris[j+2]], ctm, verts[tris[j+2]]);
+		mat4x4_mul_vec4 (points[j+0], ctm, vertices[j+0]);
+		mat4x4_mul_vec4 (points[j+1], ctm, vertices[j+1]);
+		mat4x4_mul_vec4 (points[j+2], ctm, vertices[j+2]);
 
 		vec4 e1, e2, n;
-		vec4_sub(e1, points[tris[j+1]], points[tris[j+0]]);
-		vec4_sub(e2, points[tris[j+2]], points[tris[j+0]]);
+		vec4_sub(e1, points[j+1], points[j+0]);
+		vec4_sub(e2, points[j+2], points[j+0]);
 		vec4_mul_cross(n, e1, e2);
 		n[3] = 0.f; // cross product in 4d sets this to 1.0, which we do not want
 		vec4_norm(n, n);
@@ -189,11 +189,11 @@ void tri()
 		color4 diffuse_product, spec_product;
 		vecproduct(diffuse_product, light_diffuse, material_diffuse);
 		vecproduct(spec_product, light_specular, material_specular);
-
+//		cout << "colors[" << j << "]:" << colors[j][0] << endl;
 
 		for (int i = 0; i < 3; ++i) {
 			vec4 light_vec, view_vec;
-			vec4_sub(light_vec, light_position, points[tris[j+i]]);
+			vec4_sub(light_vec, light_position, points[j+i]);
 			vec4_norm(light_vec, light_vec);
 
 			float dd1 = vec4_mul_inner(light_vec, n);
@@ -202,7 +202,9 @@ void tri()
 				vec4_scale(diffuse_color, diffuse_product, dd1);
 
 			// compute the half vector, for specular reflection:
+//			cout << "Segfault below here:" << endl;
 			vec4_sub(view_vec, viewer, points[j+i]);
+//			cout << "Segfault above here:" << endl;
 			vec4_norm(view_vec, view_vec);
 			vec4 half;
 			vec4_add(half, light_vec, view_vec);
@@ -213,9 +215,9 @@ void tri()
 			if(dd2 > 0.0)
 				vec4_scale (specular_color, spec_product, exp(material_shininess*log(dd2)));
 
-			vec4_add (colors[tris[j+i]], ambient_color, diffuse_color);
-			vec4_add (colors[tris[j+i]], colors[tris[j+i]], specular_color);
-			colors[tris[j+i]][3] = 1.0;
+			vec4_add (colors[j+i], ambient_color, diffuse_color);
+			vec4_add (colors[j+i], colors[j+i], specular_color);
+			colors[j+i][3] = 1.0;
 
 		}
 	}
@@ -244,12 +246,14 @@ void init()
     glGenBuffers(1, &vertex_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
 
-
+    //cout << "Size:" << sizeof(points) << endl;
     // specify that its part of a VAO, what its size is, and where the
     // data is located, and finally a "hint" about how we are going to use
     // the data (the driver will put it in a good memory location, hopefully)
-    glBufferData(GL_ARRAY_BUFFER, sizeof(points) + sizeof(colors),
+    glBufferData(GL_ARRAY_BUFFER, sizeof(point4)*NumVertices + sizeof(color4)*NumVertices,
                  NULL, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(point4)*NumVertices + sizeof(color4)*NumVertices,
+                     NULL, GL_DYNAMIC_DRAW);
 
     // load in these two shaders...  (note: InitShader is defined in the
     // accompanying initshader.c code).
@@ -275,7 +279,7 @@ void init()
 
     glEnableVertexAttribArray(vcol_location);
     glVertexAttribPointer(vcol_location, 4, GL_FLOAT, GL_FALSE,
-                          0, (void*) (sizeof(points)));
+                          0, (void*) (sizeof(point4)*NumVertices));
 }
 
 // use this motionfunc to demonstrate rotation - it adjusts "theta" based
@@ -361,9 +365,28 @@ int main(int argc, char *argv[])
     gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
     glfwSwapInterval(1);
 
-    std::vector<vec4> verts = std::vector<vec4>();
-    std::vector<int> tris = std::vector<int> ();
-    readObjFile(argv[1], tris, verts, points, colors);
+
+//    std::vector<float> verts = std::vector<float>();
+//    std::vector<int> tris = std::vector<int> ();
+    readObjFile(argv[1], tris, verts);
+
+    NumVertices = tris.size();
+    //array<vec4,NumVertices> vertices = array<vec4,NumVertices();
+    vec4 vertices[NumVertices];
+
+
+//    for(unsigned int i=0; i<verts.size()/3; i++){
+//    	vec4 a = {verts[3*i], verts[3*i+1], verts[3*i+2], 1.0};
+//    	//vertices[i] = a;
+//    	memcpy(vertices[i], a, sizeof(a));
+//    }
+	for(unsigned int i=0; i<tris.size(); i+=1){
+			vec4 a = {verts[3*tris[i]+0], verts[3*tris[i]+1], verts[3*tris[i]+2], 1.0};
+			//vertices[i] = a;
+			memcpy(vertices[i], a, sizeof(a));
+	}
+
+
 //	points = point4[NumVertices];
 //	colors = color4[NumVertices];
 	point4 points[NumVertices];
@@ -399,11 +422,14 @@ int main(int argc, char *argv[])
         mat4x4_rotate_Y(ctm, ctm, theta * deg_to_rad);
 
         // tri() will multiply the points by ctm, and figure out the lighting too
-        tri();
+        cout << "points[0]: " << points[2105][0] << "," << points[2105][1] << "," << points[2105][2] << endl;
+        tri(vertices,points,colors);
+        cout << "points[0]: " << points[2105][0] << "," << points[2105][1] << "," << points[2105][2] << endl;
+//        cout << "Hello! Bap!" << endl;
 
         // tell the VBO to re-get the data from the points and colors arrays:
-        glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(points), points );
-        glBufferSubData( GL_ARRAY_BUFFER, sizeof(points), sizeof(colors), colors );
+        glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(point4)*NumVertices, points );
+        glBufferSubData( GL_ARRAY_BUFFER, sizeof(point4)*NumVertices, sizeof(color4)*NumVertices, colors );
 
         // orthographically project to screen:
         mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
@@ -411,7 +437,7 @@ int main(int argc, char *argv[])
         // send that orthographic projection to the device, where the shader
         // will apply it:
         glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) p);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawArrays(GL_TRIANGLES, 0, NumVertices);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
