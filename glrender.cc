@@ -98,11 +98,7 @@ void readObjFile (const char *file, std::vector< int > &trisIn, std::vector< flo
 // x, y, r, g, b for each of 3 vertices.
 
 
-//vec4  vertices[3] = {
-//    {-0.25,0.0,0.0, 1.0},
-//    {0.25,0.0,0.0, 1.0},
-//    {0.0, 0.5,0.0, 1.0}};
-//vector<vec4> vertices = vector<vec4>();
+
 
 // viewer's position, for lighting calculations
 point4 viewer = {0.0, 0.0, -1.0, 1.0};
@@ -139,6 +135,8 @@ GLint mvp_location, vpos_location, vcol_location;
 float theta = 0.0;  // mouse rotation around the Y (up) axis
 float posx = 0.0;   // translation along X
 float posy = 0.0;   // translation along Y
+
+float phi = 0.0; //the other mouse rotation, bounded by -90 to 90
 
 const float deg_to_rad = (3.1415926 / 180.0);
 
@@ -288,6 +286,7 @@ static void mouse_move_rotate (GLFWwindow* window, double x, double y)
 {
 
     static int lastx = 0;// keep track of where the mouse was last:
+    static int lasty = 0;
 
     int amntX = x - lastx;
     if (amntX != 0) {
@@ -297,6 +296,15 @@ static void mouse_move_rotate (GLFWwindow* window, double x, double y)
 
         lastx = x;
     }
+
+    int amntY = y - lasty;
+	if (amntY != 0) {
+		phi +=  amntY;
+		if (phi > 85.0 ) phi = 85.0;
+		if (phi < -85.0 ) phi = -85.0;
+
+		lasty = y;
+	}
 
   //  std::cout << theta << std::endl;
 }
@@ -419,12 +427,13 @@ int main(int argc, char *argv[])
 
         // make up a transform that rotates around screen "Z" with time:
         mat4x4_identity(ctm);
+        mat4x4_rotate_X(ctm, ctm, phi * deg_to_rad);
         mat4x4_rotate_Y(ctm, ctm, theta * deg_to_rad);
 
         // tri() will multiply the points by ctm, and figure out the lighting too
-        cout << "points[0]: " << points[2105][0] << "," << points[2105][1] << "," << points[2105][2] << endl;
+        //cout << "points[0]: " << points[2105][0] << "," << points[2105][1] << "," << points[2105][2] << endl;
         tri(vertices,points,colors);
-        cout << "points[0]: " << points[2105][0] << "," << points[2105][1] << "," << points[2105][2] << endl;
+        //cout << "points[0]: " << points[2105][0] << "," << points[2105][1] << "," << points[2105][2] << endl;
 //        cout << "Hello! Bap!" << endl;
 
         // tell the VBO to re-get the data from the points and colors arrays:
