@@ -95,10 +95,12 @@ void readObjFile (const char *file, std::vector< int > &trisIn, std::vector< flo
 }
 
 
-// x, y, r, g, b for each of 3 vertices.
 
+//Target that we're looking at
+point4 target = {0.0, 0.0, 0.0, 1.0};
 
-
+//Our upVector
+vec4 up = {0.0, 1.0, 0.0, 0.0};
 
 // viewer's position, for lighting calculations
 point4 viewer = {0.0, 0.0, -1.0, 1.0};
@@ -131,12 +133,15 @@ mat4x4 ctm;
 // "names" for the various buffers, shaders, programs etc:
 GLuint vertex_buffer, program;
 GLint mvp_location, vpos_location, vcol_location;
+GLint cameraTransform;
 
 float theta = 0.0;  // mouse rotation around the Y (up) axis
+float phi = 0.0; //the other mouse rotation, bounded by -90 to 90
+float radius = 3.0;
+
+//These aren't used yet.
 float posx = 0.0;   // translation along X
 float posy = 0.0;   // translation along Y
-
-float phi = 0.0; //the other mouse rotation, bounded by -90 to 90
 
 const float deg_to_rad = (3.1415926 / 180.0);
 
@@ -233,6 +238,18 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
+
+    if (key == GLFW_KEY_X && action == GLFW_PRESS){
+    	radius++;
+    	if(radius > 50)
+    		radius = 50;
+    }
+
+    if (key == GLFW_KEY_Z && action == GLFW_PRESS){
+    	radius--;
+    	if(radius < 3)
+    		radius = 3;
+    }
 }
 
 void init()
@@ -407,6 +424,9 @@ int main(int argc, char *argv[])
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
+    tri(vertices,points,colors);
+    glBufferSubData( GL_ARRAY_BUFFER, sizeof(point4)*NumVertices, sizeof(color4)*NumVertices, colors );
+
     while (!glfwWindowShouldClose(window))
     {
         float ratio;
@@ -427,8 +447,20 @@ int main(int argc, char *argv[])
 
         // make up a transform that rotates around screen "Z" with time:
         mat4x4_identity(ctm);
+        mat4x4_translate(ctm, 0,0,radius);
         mat4x4_rotate_X(ctm, ctm, phi * deg_to_rad);
         mat4x4_rotate_Y(ctm, ctm, theta * deg_to_rad);
+
+
+        //I have no idea what the heck any of this code does
+        mat4x4 look;
+        mat4x4_look_at(look, viewer, target, up);
+        mat4x4_perspective(p, 45.0, ratio, 0.1, 100.0);
+        mat4x4_mul(p, p, look);
+        glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) p);
+        glUniformMatrix4fv(mvp_location, 1, GL_TRUE, (const GLfloat*) look);
+
+        cout << "Theta[ "<< theta << "] Phi[" << phi << "] Radius[" << radius << "]" << endl;
 
         // tri() will multiply the points by ctm, and figure out the lighting too
         //cout << "points[0]: " << points[2105][0] << "," << points[2105][1] << "," << points[2105][2] << endl;
@@ -438,14 +470,17 @@ int main(int argc, char *argv[])
 
         // tell the VBO to re-get the data from the points and colors arrays:
         glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(point4)*NumVertices, points );
-        glBufferSubData( GL_ARRAY_BUFFER, sizeof(point4)*NumVertices, sizeof(color4)*NumVertices, colors );
+        //glBufferSubData( GL_ARRAY_BUFFER, sizeof(point4)*NumVertices, sizeof(color4)*NumVertices, colors );
 
         // orthographically project to screen:
-        mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
+//        mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
 
         // send that orthographic projection to the device, where the shader
         // will apply it:
+//        glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) p);
+
         glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) p);
+
         glDrawArrays(GL_TRIANGLES, 0, NumVertices);
 
         glfwSwapBuffers(window);

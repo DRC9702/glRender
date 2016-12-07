@@ -32,6 +32,7 @@ void main()
 {
     gl_Position = MVP * vPos;
     color = vCol;
+    //color = MVP*vPos; //I'm starting to understand just a little
 }
 
 
