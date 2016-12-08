@@ -97,7 +97,7 @@ mat4x4 perspective; //This is our projection transformation matrix
 float theta = 0.0;  // mouse rotation around the Y (up) axis
 float posx = 0.0;   // translation along X
 float posy = 0.0;   // translation along Y
-float phi = 0.0; //This is the other angle for spherical coordinates
+float phi = 90.0; //This is the other angle for spherical coordinates
 float radius = 3.0; //Radius for spherical coordinates
 
 //Our up vector and origin point
@@ -259,7 +259,15 @@ void init()
 
     //Sending the light and material info to the shader
     glUseProgram(program);
-    glUniform4fv(eye_location,1,viewer);
+
+    point4 eyeTemp;
+    eyeTemp[0] = radius * cosf(theta*deg_to_rad) * sinf(phi*deg_to_rad);
+    eyeTemp[1] = radius * cosf(phi*deg_to_rad);
+    eyeTemp[2] = radius * sinf(theta*deg_to_rad) * sinf(phi*deg_to_rad);
+    eyeTemp[3] = 1;
+    glUniform4fv(eye_location,1,eyeTemp);
+
+
     glUniform4fv(lightPos_location,1,light_position);
     glUniform4fv(lightDiffuse_location,1,light_diffuse);
     glUniform4fv(lightSpecular_location,1,light_specular);
@@ -308,8 +316,8 @@ static void mouse_move_rotate (GLFWwindow* window, double x, double y)
     int amntY = y - lasty;
 	if (amntY != 0) {
 		phi +=  amntY;
-		if (phi > 85.0 ) phi = 85.0;
-		if (phi < -85.0 ) phi = -85.0;
+		if (phi > 175.0 ) phi = 175.0;
+		if (phi < 5.0 ) phi = 5.0;
 	}
 
 	lasty = y;
@@ -455,11 +463,17 @@ int main(int argc, char** argv)
 
 
         // make up a transform that rotates around screen "Z" with time:
-        mat4x4_identity(ctm);
-		//mat4x4_translate(ctm, 0,0,radius);
-		mat4x4_rotate_X(ctm, ctm, phi * deg_to_rad);
-		mat4x4_rotate_Y(ctm, ctm, theta * deg_to_rad);
-		mat4x4_mul_vec4 (eyeTemp, ctm, viewer);
+//        mat4x4_identity(ctm);
+//		//mat4x4_translate(ctm, 0,0,radius);
+//		mat4x4_rotate_X(ctm, ctm, phi * deg_to_rad);
+//		mat4x4_rotate_Y(ctm, ctm, theta * deg_to_rad);
+//		mat4x4_mul_vec4 (eyeTemp, ctm, viewer);
+        eyeTemp[0] = radius * cosf(theta*deg_to_rad) * sinf(phi*deg_to_rad);
+        eyeTemp[1] = radius * cosf(phi*deg_to_rad);
+        eyeTemp[2] = radius * sinf(theta*deg_to_rad) * sinf(phi*deg_to_rad);
+        eyeTemp[3] = 1;
+
+
 		displayVec4(eyeTemp);
 		vec3_norm(eyeTemp, eyeTemp);
 		displayVec4(eyeTemp);
