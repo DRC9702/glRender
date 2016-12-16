@@ -29,11 +29,12 @@ bool oldlightingmode = true;
 // we render from this setup:
 
 // viewer, light & material definitions, for lighting calculations:
-point4 viewer = {0.0, 0.0, 1.0, 1.0};
+//point4 viewer = {0.0, 0.0, 1.0, 1.0};
 point4 light_position = {100.0, 100.0, 100.0, 1.0};
 color4 light_ambient = {0.2, 0.2, 0.2, 1.0};
 color4 light_diffuse = {1.0, 1.0, 1.0, 1.0};
 color4 light_specular = {1.0, 1.0, 1.0, 1.0};
+
 
 
 // two lighting setups, that we can switch between when the user types "O":
@@ -68,6 +69,10 @@ point4 *points = nullptr;
 //No longer tracking colors, but triangle norms
 vec4 *norms = nullptr;
 
+//So we're gonna try and keep track of every triangle's vertex's smoothNorm
+vec4 *smoothNorms = nullptr;
+vec4 *flatNorms = nullptr;
+
 // a transformation matrix for the camera //I'm repurposing this variable
 mat4x4 ctm;
 
@@ -81,6 +86,9 @@ GLint mvp_location, vpos_location;//, vcol_location; //We no longer want vcol
 GLint lightPos_location, lightDiffuse_location, lightSpecular_location, lightAmbient_location,
 	materialDiffuse_location, materialSpecular_location,
 	materialAmbient_location, materialShininess_location;
+
+GLint fShading_location;
+float fShading=1;
 
 //Gonna need the location for the triangle norms we're tracking
 GLint triNorms_location;
@@ -138,18 +146,20 @@ void tri(int i)
 		vecset(points[3*i+j],vertices[3*i+j]);
 	}
 
-    // compute the triangle's normal:
-    vec4 e1, e2, n;
-    vec4_sub(e1, points[3*i+1], points[3*i+0]);
-    vec4_sub(e2, points[3*i+2], points[3*i+0]);
-    vec4_mul_cross(n, e1, e2);
-    n[3] = 0.f; // cross product in 4d sets this value to 1, which we do not want...
-    vec4_norm(n, n);
-    for (int j = 0; j < 3; ++j){
-    	vecset(norms[3*i+j],n);
-    }
+//    // compute the triangle's normal:
+//    vec4 e1, e2, n;
+//    vec4_sub(e1, points[3*i+1], points[3*i+0]);
+//    vec4_sub(e2, points[3*i+2], points[3*i+0]);
+//    vec4_mul_cross(n, e1, e2);
+//    n[3] = 0.f; // cross product in 4d sets this value to 1, which we do not want...
+//    vec4_norm(n, n);
+//    for (int j = 0; j < 3; ++j){
+//    	vecset(norms[3*i+j],n);
+//    }
 
 }
+
+
 
 
 
@@ -167,7 +177,7 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
     
     
 //    // if it's O or SHIFT-O, toggle between the 2 lighting setups:
-//    if (key == GLFW_KEY_O and mods == GLFW_MOD_SHIFT) {
+//    if (key == GLFW_KEY_O and mods == GLFW_MOD_SHIFT && action == GLFW_PRESS) {
 //        vecset(viewer, viewer2);
 //        vecset(light_position, light_position2);
 //        vecset(light_ambient, light_ambient2);
@@ -175,7 +185,7 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 //        vecset(light_specular, light_specular2);
 //        std::cout << "Shift O" << std::endl;
 //    }
-//    else if(key == GLFW_KEY_O) {
+//    else if(key == GLFW_KEY_O && action == GLFW_PRESS) {
 //        vecset(viewer, viewer1);
 //        vecset(light_position, light_position1);
 //        vecset(light_ambient, light_ambient1);
@@ -196,11 +206,28 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
     		radius = 3;
     }
 
+    if (key == GLFW_KEY_1 && action == GLFW_PRESS){
+    	norms = smoothNorms;
+    	glBufferSubData( GL_ARRAY_BUFFER, sizeof(point4)*NumVertices, sizeof(color4)*NumVertices, norms );
+    }
+
+    if (key == GLFW_KEY_2 && action == GLFW_PRESS){
+		norms = flatNorms;
+		glBufferSubData( GL_ARRAY_BUFFER, sizeof(point4)*NumVertices, sizeof(color4)*NumVertices, norms );
+	}
+
+    if (key == GLFW_KEY_S && action == GLFW_PRESS){
+		fShading = -fShading;
+		glUniform1f(fShading_location,fShading);
+		std::cout << "fShading[" << fShading << "]" << std::endl;
+		//glBufferSubData( GL_ARRAY_BUFFER, sizeof(point4)*NumVertices, sizeof(color4)*NumVertices, norms );
+	}
+
 //    //Resending the light and material info to the shader because you're changing it
 //    glUniform4fv(eye_location,1,viewer);
 //	glUniform4fv(lightPos_location,1,light_position);
 //	glUniform4fv(lightDiffuse_location,1,light_diffuse);
-//	glUniform4fv(lightSpecular_location,1,light_specular);
+//	glUniform4fv(lightSpecular_location,1,light_specular);materialAmbient_location
 //	glUniform4fv(lightAmbient_location,1,light_ambient);
 //	glUniform4fv(materialDiffuse_location,1,material_diffuse);
 //	glUniform4fv(materialSpecular_location,1,material_specular);
@@ -256,6 +283,8 @@ void init()
     materialSpecular_location = glGetUniformLocation(program, "materialSpecular");
     materialAmbient_location = glGetUniformLocation(program, "materialAmbient");
     materialShininess_location = glGetUniformLocation(program, "materialShininess");
+    //This is to send to the shader what method we're using
+    fShading_location = glGetUniformLocation(program, "fShading");
 
     //Sending the light and material info to the shader
     glUseProgram(program);
@@ -276,6 +305,8 @@ void init()
     glUniform4fv(materialSpecular_location,1,material_specular);
     glUniform4fv(materialAmbient_location,1,material_ambient);
     glUniform1f(materialShininess_location,material_shininess);
+    //This is to send to the shader what method we're using
+    glUniform1i(fShading_location, fShading);
 
 
     glEnableVertexAttribArray(vpos_location);
@@ -304,13 +335,13 @@ static void mouse_move_rotate (GLFWwindow* window, double x, double y)
     static float lasty = 0;// keep track of where the mouse was last:
     
     float amntX = x - lastx;
-    
+
     if (amntX != 0.)
         theta +=  amntX;
     
     if (theta > 360.0) theta -= 360.0;
     if (theta < 0.0 )  theta += 360.0;
-        
+
     lastx = x;
 
     int amntY = y - lasty;
@@ -334,10 +365,12 @@ void load_obj_file (char *filename)
     
     NumVertices = tri_ids.size();
     
-    vertices = new point4[NumVertices];
-    points   = new point4[NumVertices];
-    //colors   = new color4[NumVertices];
-    norms = new point4[NumVertices];
+    vertices = new point4[NumVertices]();
+    points   = new point4[NumVertices]();
+    //colors   =    color4[NumVertices];
+    flatNorms = new vec4[NumVertices]();
+    smoothNorms = new vec4[NumVertices]();
+    vec4 *tempSmoothNorms = new vec4[tri_verts.size()/3]();
     
     // tri_ids is a list of the vertex indices for each triangle, so the first
     // triangle uses up the first 3 indices, etc.
@@ -358,8 +391,29 @@ void load_obj_file (char *filename)
         vertices[3*k+2][2] = tri_verts[3*tri_ids[3*k+2]+2];
         vertices[3*k+2][3] = 1.;
         
+        // compute the triangle's normal:
+        vec4 e1, e2, n;
+        vec4_sub(e1, vertices[3*k+1], vertices[3*k]);
+        vec4_sub(e2, vertices[3*k+2], vertices[3*k]);
+        vec4_mul_cross(n, e1, e2);
+        n[3] = 0.f; // cross product in 4d sets this value to 1, which we do not want...
+        vec4_norm(n, n);
+        for (int j = 0; j < 3; ++j){
+        	vecset(flatNorms[3*k+j],n); //Set the norm
+        	vec4_add(tempSmoothNorms[tri_ids[3*k+j]],tempSmoothNorms[tri_ids[3*k+j]],n);//Add if for calculation of smooth norm
+        }
     }
-    
+    //Now we average out everything added into each of smoothNorms
+    for (int i = 0; i < tri_verts.size()/3; ++i) {
+    	vec4_norm(tempSmoothNorms[i], tempSmoothNorms[i]);
+    }
+    for (int k = 0; k < tri_ids.size() / 3; ++k) {
+    	for (int j = 0; j < 3; ++j){
+    		vecset(smoothNorms[3*k+j],tempSmoothNorms[tri_ids[3*k+j]]);
+    	}
+    }
+
+    norms = smoothNorms;
 }
 
 static void displayVec4(vec4& bap){
@@ -456,7 +510,7 @@ int main(int argc, char** argv)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
 
-        std::cout << "Theta[" << theta << "]" << std::endl;
+//        std::cout << "Theta[" << theta << "]" << std::endl;
         //displayVec4(viewer);
         point4 eyeTemp;
         vecclear(eyeTemp);
@@ -468,15 +522,15 @@ int main(int argc, char** argv)
 //		mat4x4_rotate_X(ctm, ctm, phi * deg_to_rad);
 //		mat4x4_rotate_Y(ctm, ctm, theta * deg_to_rad);
 //		mat4x4_mul_vec4 (eyeTemp, ctm, viewer);
-        eyeTemp[0] = radius * cosf(theta*deg_to_rad) * sinf(phi*deg_to_rad);
-        eyeTemp[1] = radius * cosf(phi*deg_to_rad);
-        eyeTemp[2] = radius * sinf(theta*deg_to_rad) * sinf(phi*deg_to_rad);
+        eyeTemp[0] = radius * cos(theta*deg_to_rad) * sin(phi*deg_to_rad);
+        eyeTemp[1] = radius * cos(phi*deg_to_rad);
+        eyeTemp[2] = radius * sin(theta*deg_to_rad) * sinf(phi*deg_to_rad);
         eyeTemp[3] = 1;
 
 
-		displayVec4(eyeTemp);
+//		displayVec4(eyeTemp);
 		vec3_norm(eyeTemp, eyeTemp);
-		displayVec4(eyeTemp);
+//		displayVec4(eyeTemp);
 		vec4_scale(eyeTemp,eyeTemp,radius);
 
 
@@ -487,15 +541,15 @@ int main(int argc, char** argv)
         // orthographically project to screen:
         //mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, -1.f, 1.f);
 		mat4x4_look_at(look, eyeTemp, origin, up);
-		mat4x4_perspective(perspective, 45.0, ratio, 0.1, 100.0);
+		mat4x4_perspective(perspective, .50, ratio, 0.1, 100.0);
 
-		displayVec4(eyeTemp);
+//		displayVec4(eyeTemp);
 		//displayVec4(origin);
 		//displayVec4(up);
 
-		std::cout << "p00[" << p[0][0] << "]" << std::endl;
+//		std::cout << "p00[" << p[0][0] << "]" << std::endl;
         
-        glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) p);
+//        glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat*) p);
 
         glUniformMatrix4fv(view_location, 1, GL_FALSE, (const GLfloat*) look);
         glUniformMatrix4fv(projection_location, 1, GL_FALSE, (const GLfloat*) perspective);
@@ -518,7 +572,7 @@ int main(int argc, char** argv)
     delete [] points;
     //delete [] colors;
     delete[] norms;
-    
+    delete[] smoothNorms;
     glfwTerminate();
     exit(EXIT_SUCCESS);
 }

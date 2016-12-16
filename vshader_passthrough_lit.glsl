@@ -27,6 +27,8 @@ uniform mat4 MVP;
 uniform mat4 view;
 uniform mat4 projection;
 
+uniform float fShading;
+varying float fShading2;
 
 // we are going to be getting color values, per-vertex, from the main
 // program running on the cpu (and that are then stored in the VBO on the
@@ -48,41 +50,84 @@ attribute vec4 vPos;
 // the per-vertex values:
 varying vec4 color;
 
-//These are the guys I'm gonna use to calculate color when I do my shading
-varying vec4 ambient_color, diffuse_color, specular_color;
 
-//I'm not quite sure what these do but I'm also going to need them
-varying vec4 diffuse_product, spec_product;
+//These are the variables to pass to the fragment shader
+varying vec4 fLightPos;
+varying vec4 fLightDiffuse;
+varying vec4 fLightSpecular;
+varying vec4 fLightAmbient;
+
+varying vec4 fMaterialDiffuse;
+varying vec4 fMaterialSpecular;
+varying vec4 fMaterialAmbient;
+varying float fMaterialShininess;
+
+varying vec4 fNormal;
+varying vec4 fEye;
+varying vec4 fVPos;
 
 void main()
 {
-    gl_Position = projection * view * vPos;
-    //color = vCol;
-    
-    ambient_color = materialAmbient * lightAmbient;
-    diffuse_product = lightDiffuse * materialDiffuse;
-    spec_product = lightSpecular * materialSpecular;
+	fShading2 = fShading;
+	if(fShading>=0){ //Fragment Shading
+		fLightPos = view * lightPos;
+//		fLightPos = lightPos;
+		fLightDiffuse = lightDiffuse;
+		fLightSpecular = lightSpecular;
+		fLightAmbient = lightAmbient;
 
-	vec4 light_dir = normalize(lightPos - vPos);
-    float dd1 = dot(light_dir, triNorms);
-        
-    if(dd1>0.0)
-        diffuse_color = diffuse_product * dd1;
+		fMaterialDiffuse = materialDiffuse;
+		fMaterialSpecular = materialSpecular;
+		fMaterialAmbient = materialAmbient;
+		fMaterialShininess = materialShininess;
 
-    // compute the half vector, for specular reflection:
-    vec4 view_vec = normalize(eye - vPos);
-   	vec4 half = normalize(light_dir + view_vec);
-        
-    float dd2 = dot(half, triNorms);
+		fNormal = normalize(view *triNorms);
+//		fNormal = normalize(triNorms);
+		fEye = eye;
+		fVPos = view * vPos;
+//		fVPos = vPos;
 
-    if(dd2 > 0.0)
-        specular_color = spec_product * exp(materialShininess*log(dd2));
-        
-    color = ambient_color + diffuse_color;
-	color =  color + specular_color;
-	color[3] = 1.0; // set the alpha to 1    
-    
-    
+	}
+	else{ //Vertex Shading
+		vec4 vertexPos = view * vPos;
+			vec4 transformedLightPos = view * lightPos;
+			vec4 transformedNorm = view * triNorms;
+
+			//These are the guys I'm gonna use to calculate color when I do my shading
+					vec4 ambient_color = vec4(0.0, 0.0, 0.0, 0.0);
+					vec4 diffuse_color  = vec4(0.0, 0.0, 0.0, 0.0);
+					vec4 specular_color  = vec4(0.0, 0.0, 0.0, 0.0);
+
+					//I'm not quite sure what these do but I'm also going to need them
+					vec4 diffuse_product = vec4(0.0, 0.0, 0.0, 0.0);
+					vec4 spec_product = vec4(0.0, 0.0, 0.0, 0.0);
+
+		    ambient_color = materialAmbient * lightAmbient;
+		    diffuse_product = lightDiffuse * materialDiffuse;
+		    spec_product = lightSpecular * materialSpecular;
+
+			vec4 light_dir = normalize(transformedLightPos - vertexPos);
+
+			float cosnl = max(0.0, dot(transformedNorm, light_dir));
+
+		        diffuse_color = diffuse_product * cosnl;
+
+		    // compute the half vector, for specular reflection:
+		    vec4 view_vec = normalize(eye-vertexPos);
+		   	vec4 half = normalize(light_dir + view_vec);
+
+
+		    float cosnh = max(0.0, dot(transformedNorm, half));
+		    specular_color = spec_product * pow(cosnh, materialShininess);
+
+		    color = ambient_color + diffuse_color;
+			color =  color + specular_color;
+			color[3] = 1.0; // set the alpha to 1
+
+		    //color = triNorms;
+	}
+
+	gl_Position = projection * view * vPos;
     //color = triNorms;
 }
 
