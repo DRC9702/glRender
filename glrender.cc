@@ -337,7 +337,7 @@ static void mouse_move_rotate (GLFWwindow* window, double x, double y)
     float amntX = x - lastx;
 
     if (amntX != 0.)
-        theta +=  amntX;
+        theta -=  amntX;
     
     if (theta > 360.0) theta -= 360.0;
     if (theta < 0.0 )  theta += 360.0;
