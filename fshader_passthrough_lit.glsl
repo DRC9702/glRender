@@ -38,7 +38,7 @@ void main()
   // to set in the fragment shader:
 
 	if(fShading2>=0){ //Fragment Shading
-
+		vec4 normalizedNormal = normalize(fNormal);
 		//These are the guys I'm gonna use to calculate color when I do my shading
 		vec4 ambient_color = vec4(0.0, 0.0, 0.0, 0.0);
 		vec4 diffuse_color  = vec4(0.0, 0.0, 0.0, 0.0);
@@ -55,7 +55,7 @@ void main()
 
 		vec4 light_dir = normalize(fLightPos - fVPos);
 
-		float cosnl = max(0.0, dot(fNormal, light_dir));
+		float cosnl = max(0.0, dot(normalizedNormal, light_dir));
 
 		diffuse_color = diffuse_product * cosnl;
 
@@ -64,7 +64,7 @@ void main()
 		vec4 half = normalize(light_dir + view_vec);
 
 
-		float cosnh = max(0.0, dot(fNormal, half));
+		float cosnh = max(0.0, dot(normalizedNormal, half));
 		specular_color = spec_product * pow(cosnh, fMaterialShininess);
 
 		gl_FragColor = ambient_color + diffuse_color;

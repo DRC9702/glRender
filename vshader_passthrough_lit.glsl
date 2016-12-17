@@ -81,26 +81,30 @@ void main()
 		fMaterialAmbient = materialAmbient;
 		fMaterialShininess = materialShininess;
 
-		fNormal = normalize(view *triNorms);
+//		fNormal = normalize(view *triNorms);
+		fNormal = view*triNorms;
 //		fNormal = normalize(triNorms);
-		fEye = eye;
+		vec4 zeroedEye = vec4(0.0,0.0,0.0,1.0);
+		//fEye = eye;
+		fEye = zeroedEye;
 		fVPos = view * vPos;
 //		fVPos = vPos;
 
 	}
 	else{ //Vertex Shading
 		vec4 vertexPos = view * vPos;
-			vec4 transformedLightPos = view * lightPos;
-			vec4 transformedNorm = view * triNorms;
+		vec4 transformedLightPos = view * lightPos;
+		vec4 transformedNorm = view * triNorms;
+		vec4 zeroedEye = vec4(0.0,0.0,0.0,1.0);
 
 			//These are the guys I'm gonna use to calculate color when I do my shading
-					vec4 ambient_color = vec4(0.0, 0.0, 0.0, 0.0);
-					vec4 diffuse_color  = vec4(0.0, 0.0, 0.0, 0.0);
-					vec4 specular_color  = vec4(0.0, 0.0, 0.0, 0.0);
+			vec4 ambient_color = vec4(0.0, 0.0, 0.0, 0.0);
+			vec4 diffuse_color  = vec4(0.0, 0.0, 0.0, 0.0);
+			vec4 specular_color  = vec4(0.0, 0.0, 0.0, 0.0);
 
-					//I'm not quite sure what these do but I'm also going to need them
-					vec4 diffuse_product = vec4(0.0, 0.0, 0.0, 0.0);
-					vec4 spec_product = vec4(0.0, 0.0, 0.0, 0.0);
+			//I'm not quite sure what these do but I'm also going to need them
+			vec4 diffuse_product = vec4(0.0, 0.0, 0.0, 0.0);
+			vec4 spec_product = vec4(0.0, 0.0, 0.0, 0.0);
 
 		    ambient_color = materialAmbient * lightAmbient;
 		    diffuse_product = lightDiffuse * materialDiffuse;
@@ -113,8 +117,9 @@ void main()
 		        diffuse_color = diffuse_product * cosnl;
 
 		    // compute the half vector, for specular reflection:
-		    vec4 view_vec = normalize(eye-vertexPos);
-		   	vec4 half = normalize(light_dir + view_vec);
+		    vec4 view_vec = normalize(zeroedEye-vertexPos);
+
+		    vec4 half = normalize(light_dir + view_vec);
 
 
 		    float cosnh = max(0.0, dot(transformedNorm, half));
